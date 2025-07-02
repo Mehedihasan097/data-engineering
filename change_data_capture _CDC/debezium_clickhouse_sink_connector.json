@@ -1,0 +1,43 @@
+{
+  "name": "clickhouse-sink-connector-dwh",
+  "config": {
+    "name": "clickhouse-sink-connector-dwh",
+    "connector.class": "com.clickhouse.kafka.connect.ClickHouseSinkConnector",
+
+    "topics": "postgres_cdc_.public.kafka_sink_data",
+    "tasks.max": "1",
+
+    "hostname": "host.docker.internal",
+    "port": "8123",
+    "database": "kafka_staging_db",
+    "username": "DWH_PRACTITIONER",
+    "password": "********",
+    "ssl": "false",
+
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "false",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "true",
+
+    "topic2TableMap": "postgres_cdc_.public.kafka_sink_data=stg_transaction_base",
+    "insertFormat": "upsert",
+
+    "auto.create.databases": "false",
+    "auto.evolve.tables": "true",
+    "auto.create.tables": "false",
+
+    "errors.tolerance": "all",
+    "errors.log.enable": "true",
+    "errors.log.include.messages": "true",
+    
+
+    "transforms": "unwrap",
+    "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+    "transforms.unwrap.decimal.handling.mode": "double",
+    "transforms.unwrap.delete.handling.mode": "rewrite",
+    "transforms.unwrap.add.fields": "__deleted",
+    "transforms.unwrap.drop.tombstones": "true",
+
+    "bypassSchemaValidation": "true"
+  }
+}
