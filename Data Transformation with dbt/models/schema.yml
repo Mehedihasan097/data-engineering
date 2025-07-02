@@ -1,0 +1,71 @@
+version: 2
+
+sources:
+  - name: raw
+    database: dbt_demo
+    schema: raw
+    description: raw table in postgre
+
+    tables:
+      - name: sales_transactions
+        description: stores sales transaction database
+
+        columns:
+          - name: transaction_id
+            description: A unique transaction ID
+            tests:
+              - unique
+              - not_null
+
+          - name: product_id
+            description: A unique product ID referencing from product catalog
+
+          - name: user_id
+            description: A unique user ID
+
+          - name: transaction_timestamp
+            description: A random date within the current year
+
+          - name: revenue
+            description: selling amount to customer 
+          - name: cost
+            description: maufacturing / buying price of the product 
+
+      - name: product_catalog
+        description: Reference table that stores product details
+
+        columns:
+          - name: product_id
+            description: A unique product ID
+            tests:
+              - unique
+              - not_null
+
+          - name: product_name
+            description: Name of the product
+
+          - name: category
+            description: Product category          
+
+      - name: marketing_events
+        description: "Table storing user marketing interactions"
+        columns:
+          - name: event_id
+            description: "Unique identifier for the event"
+            tests:
+              - unique
+              - not_null
+          - name: user_id
+            description: "User identifier associated with the event"
+          - name: event_type
+            description: "Type of event (click, purchase, signup, view)"
+          - name: event_timestamp
+            description: "Time when the event occurred"
+          - name: channel
+            description: "Marketing channel (Facebook, Google, Email, Organic)"
+          - name: campaign
+            description: "Marketing campaign associated with the event"
+          - name: cost
+            description: "Marketing cost of the event"
+          - name: updated_at
+            description: "Timestamp when the event was last updated"       

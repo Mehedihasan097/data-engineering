@@ -1,0 +1,33 @@
+{
+  "name": "postgres-source-connector",
+  "config": {
+    "connector.class": "io.confluent.connect.jdbc.JdbcSourceConnector",
+    "tasks.max": "1",
+    "connection.url": "jdbc:postgresql://host.docker.internal:5432/data_pipeline",
+    "connection.user": "postgres",
+    "connection.password": "*******",
+
+    "topic.prefix": "postgres_source_",
+    "table.whitelist": "kafka_sink_data",
+
+    "mode": "incrementing",   
+    "incrementing.column.name": "pk_id",            
+
+    "poll.interval.ms": "5000",
+    "validate.non.null": "false",                   
+
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "value.converter.schema.registry.url": "http://schema-registry:8081",
+    "value.converter.schemas.enable": "true",
+
+    "numeric.mapping": "none",
+
+    "key.converter": "io.confluent.connect.avro.AvroConverter",
+    "key.converter.schema.registry.url": "http://schema-registry:8081",
+    "key.converter.schemas.enable": "true",
+
+    "errors.tolerance": "all",
+    "errors.log.enable": "true",
+    "errors.log.include.messages": "true"
+  }
+}
