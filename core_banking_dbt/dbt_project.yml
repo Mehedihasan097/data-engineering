@@ -1,0 +1,33 @@
+name: 'core_banking_dbt'
+version: '1.0.0'
+
+profile: 'core_banking_dbt'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  core_banking_dbt:
+    +persist_docs: # Enables descriptions to be documented in the database (optional)
+      relation: true
+      columns: true
+
+    bronze:
+      +materialized: view
+      +schema: bronze  # Will create schema like `core_banking_db`.`bronze`
+
+    silver:
+      +materialized: incremental
+      +schema: silver
+
+    marts:
+      +materialized: incremental
+      +schema: marts

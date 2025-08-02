@@ -1,0 +1,33 @@
+{{ config(materialized='view') }}
+
+SELECT
+    "LEDGER_ENTRY_ID"                            AS ledger_entry_id,
+    "TRANSACTION_ID"                             AS transaction_id,
+    "ENTRY_SEQUENCE_NO"                          AS entry_sequence_no,
+    CAST("TRANSACTION_TIMESTAMP" AS timestamp)    AS transaction_timestamp,
+    CAST("PROCESSING_TIMESTAMP" AS timestamp)     AS processing_timestamp,
+    CAST("VALUE_DATE" AS date)                    AS value_date,
+    "ACCOUNT_ID"                                 AS account_id,
+    "GL_ACCOUNT_CODE"                            AS gl_account_code,
+    "AMOUNT"                                     AS amount,
+    "CURRENCY_CODE"                              AS currency_code,
+    "ENTRY_TYPE"                                 AS entry_type,
+    "EQUIVALENT_BASE_AMOUNT"                     AS equivalent_base_amount,
+    "FX_RATE"                                    AS fx_rate,
+    "TRANSACTION_TYPE_CODE"                      AS transaction_type_code,
+    "CHANNEL_CODE"                               AS channel_code,
+    "PROCESSING_SYSTEM_CODE"                     AS processing_system_code,
+    "TRANSACTION_STATUS_CODE"                    AS transaction_status_code,
+    "ENTRY_DESCRIPTION"                          AS entry_description,
+    "BATCH_ID"                                   AS batch_id,
+    "CORRELATION_ID"                             AS correlation_id,
+    "IS_REVERSAL_ENTRY"                          AS is_reversal_entry,
+    "REVERSED_LEDGER_ENTRY_ID"                   AS reversed_ledger_entry_id,
+    "RELATED_ENTITY_TYPE"                        AS related_entity_type,
+    "RELATED_ENTITY_ID"                          AS related_entity_id,
+    "AUDIT_USER_ID"                              AS audit_user_id,
+    "AUDIT_CLIENT_IP"                            AS audit_client_ip,
+    "AUDIT_HASH"                                 AS audit_hash,
+    CAST("CREATED_DATE" AS timestamp)             AS created_date,
+    CAST("LAST_UPDATED_DATE" AS timestamp)        AS last_updated_date
+FROM {{ source('core_banking', 'financial_ledger') }}

@@ -1,0 +1,114 @@
+version: 2
+
+models:
+  - name: stg_financial_ledger
+    description: "Double entry transactional financial ledger capturing all monetary activities."
+
+    # this section ensure upstream data sources are fresh and reliable 
+        # e.g; Warn if the most recent timestamp is older than 12 hours, Error if it's older than 24 hours
+        # quick test - bash - dbt source snapshot-freshness --select source:core_banking.financial_ledger
+
+    #loaded_at_field: 'transaction_timestamp'
+    #freshness:
+      #warn_after: {count: 12, period: hour}
+      #error_after: {count: 24, period: hour}
+
+    columns:
+      - name: ledger_entry_id
+        description: "Unique identifier for the ledger entry."
+        tests:
+          - not_null
+          - unique
+
+      - name: transaction_id
+        description: "Associated transaction ID."
+        tests:
+          - not_null
+
+      - name: entry_sequence_no
+        description: "Sequence number of the entry in a transaction."
+
+      - name: transaction_timestamp
+        description: "Timestamp when the transaction occurred."
+        tests:
+          - not_null
+
+      - name: processing_timestamp
+        description: "Timestamp when the transaction was processed."
+
+      - name: value_date
+        description: "Value date for financial posting."
+
+      - name: account_id
+        description: "Foreign key referencing the associated account."
+
+      - name: gl_account_code
+        description: "General ledger account code."
+
+      - name: amount
+        description: "Transaction amount."
+        tests:
+          - not_null
+
+      - name: currency_code
+        description: "ISO code of the transaction currency."
+
+      - name: entry_type
+        description: "Type of entry (debit/credit)."
+
+      - name: equivalent_base_amount
+        description: "Amount in base currency."
+
+      - name: fx_rate
+        description: "Applied foreign exchange rate."
+
+      - name: transaction_type_code
+        description: "Code indicating the type of transaction."
+
+      - name: channel_code
+        description: "Channel from which the transaction was initiated."
+
+      - name: processing_system_code
+        description: "Source system that processed the transaction."
+
+      - name: transaction_status_code
+        description: "Current status of the transaction."
+
+      - name: entry_description
+        description: "Additional detail or description for the entry."
+
+      - name: batch_id
+        description: "Identifier for the batch processing."
+
+      - name: correlation_id
+        description: "Correlation ID for grouping entries."
+
+      - name: is_reversal_entry
+        description: "Boolean flag indicating if this entry is a reversal."
+
+      - name: reversed_ledger_entry_id
+        description: "Points to the original entry that was reversed."
+
+      - name: related_entity_type
+        description: "Type of related external entity (e.g., ATM, POS)."
+
+      - name: related_entity_id
+        description: "ID of the related external entity."
+
+      - name: audit_user_id
+        description: "User who created or updated the entry."
+
+      - name: audit_client_ip
+        description: "IP address of the client."
+
+      - name: audit_hash
+        description: "Hash used for data integrity."
+
+      - name: created_date
+        description: "Entry creation timestamp."
+
+      - name: last_updated_date
+        description: "Entry last updated timestamp."
+
+
+      

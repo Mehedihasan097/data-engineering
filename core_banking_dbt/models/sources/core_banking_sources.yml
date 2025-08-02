@@ -1,0 +1,314 @@
+version: 2
+
+sources:
+  - name: core_banking
+    database: core_banking_db
+    schema: core_banking
+    description: >
+      Raw data ingested from the Core Banking system including financial transactions, reference mappings, and core entities.
+
+    tables:
+      #fact table
+      - name: financial_ledger
+        description: >
+          Ledger entries capturing double entry for each financial transactions in the core banking system.
+
+        # this section ensure upstream data sources are fresh and reliable 
+        # e.g; Warn if the most recent timestamp is older than 12 hours, Error if it's older than 24 hours
+        # quick test - bash - dbt source snapshot-freshness --select source:core_banking.financial_ledger
+
+        #loaded_at_field: "CAST("TRANSACTION_TIMESTAMP" as timestamp)"
+        #freshness:
+          #warn_after: {count: 12, period: hour}
+          #error_after: {count: 24, period: hour}
+        columns:
+          - name: "LEDGER_ENTRY_ID"
+            description: Unique identifier for the ledger entry.
+          - name: "TRANSACTION_ID"
+            description: Associated transaction ID.
+          - name: "ENTRY_SEQUENCE_NO"
+            description: Sequence number of the entry in a transaction.
+          - name: "TRANSACTION_TIMESTAMP"
+            description: Timestamp when the transaction occurred.
+          - name: "PROCESSING_TIMESTAMP"
+            description: Timestamp when the transaction was processed.
+          - name: "VALUE_DATE"
+            description: Value date for financial posting.
+          - name: "ACCOUNT_ID"
+            description: Foreign key referencing the associated account.
+          - name: "GL_ACCOUNT_CODE"
+            description: General ledger account code.
+          - name: "AMOUNT"
+            description: Transaction amount.
+          - name: "CURRENCY_CODE"
+            description: ISO code of the transaction currency.
+          - name: "ENTRY_TYPE"
+            description: Type of entry (debit/credit).
+          - name: "EQUIVALENT_BASE_AMOUNT"
+            description: Amount in base currency.
+          - name: "FX_RATE"
+            description: Applied foreign exchange rate.
+          - name: "TRANSACTION_TYPE_CODE"
+            description: Code indicating the type of transaction.
+          - name: "CHANNEL_CODE"
+            description: Channel from which the transaction was initiated.
+          - name: "PROCESSING_SYSTEM_CODE"
+            description: Source system that processed the transaction.
+          - name: "TRANSACTION_STATUS_CODE"
+            description: Current status of the transaction.
+          - name: "ENTRY_DESCRIPTION"
+            description: Additional detail or description for the entry.
+          - name: "BATCH_ID"
+            description: Identifier for the batch processing.
+          - name: "CORRELATION_ID"
+            description: Correlation ID for grouping entries.
+          - name: "IS_REVERSAL_ENTRY"
+            description: Boolean flag indicating if this entry is a reversal.
+          - name: "REVERSED_LEDGER_ENTRY_ID"
+            description: Points to the original entry that was reversed.
+          - name: "RELATED_ENTITY_TYPE"
+            description: Type of related external entity (e.g., ATM, POS).
+          - name: "RELATED_ENTITY_ID"
+            description: ID of the related external entity.
+          - name: "AUDIT_USER_ID"
+            description: User who created or updated the entry.
+          - name: "AUDIT_CLIENT_IP"
+            description: IP address of the client.
+          - name: "AUDIT_HASH"
+            description: Hash used for data integrity.
+          - name: "CREATED_DATE"
+            description: Entry creation timestamp.
+          - name: "LAST_UPDATED_DATE"
+            description: Entry last updated timestamp.
+
+      #REFERENCE TABLES
+
+      - name: ref_channels
+        description: Channel reference data mapping channel codes to readable names.
+        columns:
+          - name: channel_code
+            description: Unique code for the channel.
+          - name: channel_name
+            description: Name of the channel (e.g., ATM, Branch).
+          - name: description
+            description: Description of the channel.
+          - name: is_active
+            description: Indicates if the channel is active.
+          - name: created_date
+            description: Record creation timestamp.
+          - name: last_updated_date
+            description: Record last update timestamp.
+
+      - name: ref_currencies
+        description: Currency master data including symbols and precision.
+        columns:
+          - name: currency_code
+            description: ISO code for the currency.
+          - name: currency_name
+            description: Name of the currency.
+          - name: decimal_places
+            description: Number of decimal places supported.
+          - name: symbol
+            description: Symbol of the currency (e.g., $, ৳).
+          - name: is_active
+            description: Indicates if the currency is active.
+          - name: created_date
+            description: Record creation timestamp.
+          - name: updated_date
+            description: Last updated timestamp.
+
+      - name: ref_gl_accounts
+        description: General ledger account master data.
+        columns:
+          - name: gl_code
+            description: Unique GL account code.
+          - name: gl_name
+            description: Name of the GL account.
+          - name: account_type
+            description: Type of account (e.g., Asset, Liability).
+          - name: parent_gl_code
+            description: Parent GL account code for hierarchy.
+          - name: is_active
+            description: Indicates if the GL account is active.
+          - name: created_date
+            description: Record creation timestamp.
+          - name: last_updated_date
+            description: Record last updated timestamp.
+
+      - name: ref_processing_systems
+        description: Reference data for systems processing the transactions.
+        columns:
+          - name: system_code
+            description: Unique code for the processing system.
+          - name: system_name
+            description: Name of the system.
+          - name: description
+            description: Description of the system.
+          - name: created_date
+            description: Record creation timestamp.
+          - name: last_updated_date
+            description: Last updated timestamp.
+
+      - name: ref_transaction_status
+        description: Reference table indicating status of transactions.
+        columns:
+          - name: status_code
+            description: Unique status code.
+          - name: status_name
+            description: Name of the transaction status.
+          - name: description
+            description: Description of the status.
+
+      - name: ref_transaction_types
+        description: Master data for different transaction types.
+        columns:
+          - name: type_code
+            description: Unique code for the transaction type.
+          - name: type_name
+            description: Descriptive name.
+          - name: description
+            description: Details about the transaction type.
+          - name: is_financial
+            description: Indicates whether the type is financial.
+          - name: is_reversal_type
+            description: Flag for identifying reversal transactions.
+          - name: created_date
+            description: Creation timestamp.
+          - name: last_updated_date
+            description: Last update timestamp.
+
+      #ENTITY TABLES
+
+      - name: customers
+        description: Entity table containing customer master data.
+        columns:
+          - name: customer_id
+            description: Unique ID for customer.
+          - name: customer_unique_id
+            description: External unique identifier.
+          - name: first_name
+            description: First name of customer.
+          - name: last_name
+            description: Last name of customer.
+          - name: date_of_birth
+            description: Date of birth.
+          - name: gender
+            description: Gender of the customer.
+          - name: contact_number
+            description: Mobile or landline number.
+          - name: email_address
+            description: Email of the customer.
+          - name: address_line1
+            description: Street address.
+          - name: city
+            description: City of residence.
+          - name: country
+            description: Country of residence.
+          - name: created_date
+            description: Record creation timestamp.
+          - name: last_updated_date
+            description: Record last updated timestamp.
+
+      - name: accounts
+        description: Accounts linked to customers.
+        columns:
+          - name: account_id
+            description: Unique identifier of the account.
+          - name: account_number
+            description: Account number.
+          - name: customer_id
+            description: Foreign key to customers table.
+          - name: account_type
+            description: Type of account.
+          - name: currency_code
+            description: Currency associated with the account.
+          - name: current_balance
+            description: Current balance of the account.
+          - name: opening_date
+            description: Date account was opened.
+          - name: closing_date
+            description: Date account was closed (if applicable).
+          - name: account_status
+            description: Status of the account.
+          - name: gl_account_code
+            description: Associated GL account.
+          - name: created_date
+            description: Record creation timestamp.
+          - name: last_updated_date
+            description: Last update timestamp.
+
+      - name: users
+        description: Internal system users like tellers or officers.
+        columns:
+          - name: user_id
+            description: Unique ID of the user.
+          - name: username
+            description: Username for login.
+          - name: full_name
+            description: Full name.
+          - name: email
+            description: Email address.
+          - name: role
+            description: System role or designation.
+          - name: is_active
+            description: User's active status.
+          - name: created_date
+            description: Record creation timestamp.
+          - name: last_updated_date
+            description: Last updated timestamp.
+
+      - name: branches
+        description: Bank branch master data.
+        columns:
+          - name: branch_id
+            description: Unique branch identifier.
+          - name: branch_name
+            description: Branch name.
+          - name: address
+            description: Full address.
+          - name: city
+            description: City.
+          - name: country
+            description: Country.
+          - name: contact_number
+            description: Phone number.
+          - name: manager_user_id
+            description: User ID of branch manager.
+          - name: opening_date
+            description: Branch opening date.
+          - name: closing_date
+            description: Closing date if applicable.
+          - name: is_active
+            description: Flag indicating if branch is operational.
+          - name: created_date
+            description: Record creation timestamp.
+          - name: last_updated_date
+            description: Last updated timestamp.
+
+      - name: atms
+        description: ATM machine information.
+        columns:
+          - name: atm_id
+            description: Unique identifier for the ATM.
+          - name: location_name
+            description: Location name of the ATM.
+          - name: address
+            description: Address of ATM.
+          - name: city
+            description: City.
+          - name: country
+            description: Country.
+          - name: atm_type
+            description: Type of ATM (e.g., Cash Withdrawal, Full Service).
+          - name: atm_status
+            description: Current operational status.
+          - name: cash_gl_account_id
+            description: GL account linked with cash.
+          - name: branch_id
+            description: Branch where ATM is located.
+          - name: last_maintenance_date
+            description: Last time the ATM was serviced.
+          - name: created_date
+            description: Record creation timestamp.
+          - name: last_updated_date
+            description: Last updated timestamp.

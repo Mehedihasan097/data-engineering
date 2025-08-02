@@ -1,0 +1,46 @@
+version: 2
+
+models:
+  - name: atm_withdraw_txn_data_mart
+    description: >
+      Gold-layer fact table with one row per complete ATM withdrawal transaction.
+      Combines debit, credit, and fee entries from the financial ledger with ATM, branch, channel, and transaction type details.
+    columns:
+      - name: transaction_id
+        description: Unique identifier for the ATM withdrawal transaction.
+        tests:
+          - not_null
+          - unique
+      - name: transaction_timestamp
+        description: Timestamp when the ATM withdrawal occurred.
+        tests:
+          - not_null
+      - name: customer_account_id
+        description: Customer account from which cash was withdrawn.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_accounts')
+              field: account_id
+      - name: atm_account_id
+        description: ATM's cash account used for the withdrawal.
+      - name: atm_id
+        description: Physical ATM machine ID.
+      - name: location_name
+        description: Location of the ATM.
+      - name: branch_id
+        description: Branch to which the ATM belongs.
+      - name: branch_name
+        description: Branch name.
+      - name: type_name
+        description: Descriptive name of the transaction type.
+      - name: channel_code
+        description: Transaction channel code.
+      - name: channel_name
+        description: Human-readable channel name.
+      - name: withdrawal_amount
+        description: Amount withdrawn by the customer.
+        tests:
+          - not_null
+      - name: atm_service_fee
+        description: Service fee charged for the withdrawal.

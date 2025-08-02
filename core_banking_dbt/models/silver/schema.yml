@@ -1,0 +1,417 @@
+version: 2
+
+models:
+  - name: financial_ledger_deduped
+    description: >
+      Silver-layer, deduplicated and type-normalized version of the financial_ledger.
+      Keeps the latest ledger entry per ledger_entry_id, casts string timestamps to proper types,
+      and serves as the canonical transactional fact for downstream marts.
+    columns:
+      - name: ledger_entry_id
+        description: "Unique identifier for the ledger entry. Deduplication is done on this key."
+        tests:
+          - not_null
+          - unique
+
+      - name: transaction_id
+        description: "Identifier for the parent transaction."
+        tests:
+          - not_null
+
+      - name: entry_sequence_no
+        description: "Sequence number of the entry within the transaction."
+
+      - name: transaction_timestamp
+        description: "When the transaction occurred (casted to TIMESTAMP)."
+        tests:
+          - not_null
+
+      - name: processing_timestamp
+        description: "When the transaction was processed (casted to TIMESTAMP)."
+
+      - name: value_date
+        description: "Value date for financial posting (casted to DATE)."
+
+      - name: account_id
+        description: "Associated account for the ledger entry."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_accounts')
+              field: account_id
+
+      - name: gl_account_code
+        description: "General ledger account code impacted by the transaction."
+        tests:
+          - relationships:
+              to: ref('stg_ref_gl_accounts')
+              field: gl_code
+
+      - name: amount
+        description: "Transaction amount."
+        tests:
+          - not_null
+
+      - name: currency_code
+        description: "Currency ISO code of the transaction."
+        tests:
+          - relationships:
+              to: ref('stg_ref_currencies')
+              field: currency_code
+
+      - name: entry_type
+        description: "Entry type, e.g., debit or credit."
+        tests:
+          - accepted_values:
+              values: ['DR', 'CR']
+
+      - name: transaction_type_code
+        description: "Code representing the type of transaction."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_ref_transaction_types')
+              field: type_code
+
+      - name: channel_code
+        description: "Channel through which the transaction was initiated."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_ref_channels')
+              field: channel_code
+
+      - name: processing_system_code
+        description: "System that processed the transaction."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_ref_processing_systems')
+              field: system_code
+
+      - name: transaction_status_code
+        description: "Status of the transaction (e.g., success, failed)."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_ref_transaction_status')
+              field: status_code
+
+      - name: entry_description
+        description: "Narrative or explanation for the ledger entry."
+
+      - name: batch_id
+        description: "Batch identifier if the transaction was part of a batch."
+
+      - name: correlation_id
+        description: "Correlation ID to tie together related flows."
+
+      - name: is_reversal_entry
+        description: "Flag indicating whether this entry is a reversal."
+
+      - name: reversed_ledger_entry_id
+        description: "Original ledger entry ID if this is a reversal."
+
+      - name: related_entity_type
+        description: "Type of related external entity (e.g., ATM, POS)."
+
+      - name: related_entity_id
+        description: "Identifier of the related external entity."
+
+      - name: audit_user_id
+        description: "User who performed the operation."
+
+      - name: audit_client_ip
+        description: "Client IP address from which the operation originated."
+
+      - name: audit_hash
+        description: "Hash value for data integrity."
+
+      - name: created_date
+        description: "Original creation timestamp of the ledger entry."
+
+      - name: last_updated_date
+        description: "Timestamp of the last update to this ledger entry."
+
+# ENTITY MODELS
+  - name: stg_customers
+    description: "Raw customer entity data from the core banking system."
+    columns:
+      - name: customer_id
+        description: "Unique identifier for each customer."
+        tests:
+          - not_null
+          - unique
+      - name: customer_unique_id
+        description: Encrypted unique identifier.
+        tests:
+          - not_null
+          - unique
+      - name: first_name
+        description: First name of customer.
+      - name: last_name
+        description: Last name of customer.
+      - name: date_of_birth
+        description: Date of birth.
+      - name: gender
+        description: Gender of the customer.
+      - name: contact_number
+        description: Mobile or landline number.
+      - name: email_address
+        description: Email of the customer.
+      - name: address_line1
+        description: Street address.
+      - name: city
+        description: City of residence.
+      - name: country
+        description: Country of residence.
+      - name: created_date
+        description: Record creation timestamp.
+      - name: last_updated_date
+        description: Record last updated timestamp.
+
+  - name: stg_accounts
+    description: "Raw account-level data for customers."
+    columns:
+      - name: account_id
+        description: Unique identifier of the account.
+        tests:
+          - not_null
+          - unique
+      - name: account_number
+        description: Account number.
+        tests:
+          - not_null
+          - unique
+      - name: customer_id
+        description: Foreign key to customers table.
+      - name: account_type
+        description: Type of account.
+      - name: currency_code
+        description: Currency associated with the account.
+      - name: current_balance
+        description: Current balance of the account.
+      - name: opening_date
+        description: Date account was opened.
+      - name: closing_date
+        description: Date account was closed (if applicable).
+      - name: account_status
+        description: Status of the account.
+      - name: gl_account_code
+        description: Associated GL account.
+        tests:
+          - relationships:
+              to: ref('stg_ref_gl_accounts')
+              field: gl_code
+      - name: created_date
+        description: Record creation timestamp.
+      - name: last_updated_date
+        description: Last update timestamp.
+
+  - name: stg_users
+    description: "Raw data of internal users (employees) interacting with the banking system."
+    columns:
+      - name: user_id
+        description: Unique ID of the user.
+        tests:
+          - not_null
+          - unique
+      - name: username
+        description: Username for login.
+      - name: full_name
+        description: Full name.
+      - name: email
+        description: Email address.
+      - name: role
+        description: System role or designation.
+      - name: is_active
+        description: User's active status.
+      - name: created_date
+        description: Record creation timestamp.
+      - name: last_updated_date
+        description: Last updated timestamp.
+
+  - name: stg_branches
+    description: Raw data for physical bank branches.
+    columns:
+      - name: branch_id
+        description: Unique identifier for the branch.
+        tests:
+          - not_null
+          - unique
+      - name: branch_name
+        description: Branch name.
+      - name: address
+        description: Full address.
+      - name: city
+        description: City.
+      - name: country
+        description: Country.
+      - name: contact_number
+        description: Phone number.
+      - name: manager_user_id
+        description: User ID of branch manager, associated with user_id
+        tests:
+          - relationships:
+              to: ref('stg_users')
+              field: user_id
+
+      - name: opening_date
+        description: Branch opening date.
+      - name: closing_date
+        description: Closing date if applicable.
+      - name: is_active
+        description: Flag indicating if branch is operational.
+      - name: created_date
+        description: Record creation timestamp.
+      - name: last_updated_date
+        description: Last updated timestamp.
+
+  - name: stg_atms
+    description: "Master list of ATM terminals in the banking system."
+    columns:
+      - name: atm_id
+        description: "Unique identifier for each ATM terminal."
+        tests:
+          - not_null
+          - unique
+      - name: location_name
+        description: Location name of the ATM.
+      - name: address
+        description: Address of ATM.
+      - name: city
+        description: City.
+      - name: country
+        description: Country.
+      - name: atm_type
+        description: Type of ATM (e.g., Cash Withdrawal, Full Service).
+      - name: atm_status
+        description: Current operational status.
+      - name: cash_gl_account_id
+        description: GL account linked with cash.
+      - name: branch_id
+        description: Associated branch of the ATM.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_branches')
+              field: branch_id
+      - name: last_maintenance_date
+        description: Last time the ATM was serviced.
+      - name: created_date
+        description: Record creation timestamp.
+      - name: last_updated_date
+        description: Last updated timestamp.
+
+  #REFERENCE MODELS
+  - name: stg_ref_channels
+    description: Reference data for transaction channels (e.g., ATM, Mobile App)
+    columns:
+      - name: channel_code
+        description: Unique code for the channel.
+        tests:
+          - not_null
+          - unique
+      - name: channel_name
+        description: Name of the channel (e.g., ATM, Branch).
+      - name: description
+        description: Description of the channel.
+      - name: is_active
+        description: Indicates if the channel is active.
+      - name: created_date
+        description: Record creation timestamp.
+      - name: last_updated_date
+        description: Record last update timestamp.
+
+  - name: stg_ref_currencies
+    description: Reference list of supported currencies in the system
+    columns:
+      - name: currency_code
+        description: ISO code for the currency.
+        tests:
+          - not_null
+          - unique
+      - name: currency_name
+        description: Name of the currency.
+      - name: decimal_places
+        description: Number of decimal places supported.
+      - name: symbol
+        description: Symbol of the currency (e.g., $, ৳).
+      - name: is_active
+        description: Indicates if the currency is active.
+      - name: created_date
+        description: Record creation timestamp.
+      - name: updated_date
+        description: Last updated timestamp.
+
+  - name: stg_ref_gl_accounts
+    description: Reference table for General Ledger accounts.
+    columns:
+      - name: gl_code
+        description: Unique GL account code.
+        tests:
+          - not_null
+          - unique
+      - name: gl_name
+        description: Name of the GL account.
+      - name: account_type
+        description: Type of account (e.g., Asset, Liability).
+      - name: parent_gl_code
+        description: Parent GL account code for hierarchy.
+      - name: is_active
+        description: Indicates if the GL account is active.
+      - name: created_date
+        description: Record creation timestamp.
+      - name: last_updated_date
+        description: Record last updated timestamp.
+
+  - name: stg_ref_processing_systems
+    description: Reference data for systems processing the transactions.
+    columns:
+      - name: system_code
+        description: Unique code for the processing system.
+        tests:
+          - not_null
+          - unique
+      - name: system_name
+        description: Name of the system.
+      - name: description
+        description: Description of the system.
+      - name: created_date
+        description: Record creation timestamp.
+      - name: last_updated_date
+        description: Last updated timestamp.
+
+  - name: stg_ref_transaction_status
+    description: Reference indicating status of transactions.
+    columns:
+      - name: status_code
+        description: Unique status code.
+        tests:
+          - not_null
+          - unique
+      - name: status_name
+        description: Name of the transaction status.
+      - name: description
+        description: Description of the status.
+
+  - name: stg_ref_transaction_types
+    description: Master data for different transaction types.
+    columns:
+      - name: type_code
+        description: Unique code for the transaction type.
+        tests:
+          - not_null
+          - unique
+      - name: type_name
+        description: Descriptive name.
+      - name: description
+        description: Details about the transaction type.
+      - name: is_financial
+        description: Indicates whether the type is financial.
+      - name: is_reversal_type
+        description: Flag for identifying reversal transactions.
+      - name: created_date
+        description: Creation timestamp.
+      - name: last_updated_date
+        description: Last update timestamp.
