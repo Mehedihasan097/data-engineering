@@ -1,0 +1,493 @@
+name: bank_cbs
+version: 1.0.0
+description: "DBT project for Core Banking ATM Withdrawal Simulation"
+
+profile: bank_cbs
+
+source-paths: ["models"]
+target-path: "target"
+clean-targets: ["target", "dbt_modules"]
+
+model-paths: ["models"]
+data-paths: ["data"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+models:
+  bank_cbs:
+    +materialized: view
+    bronze:
+      +schema: bronze
+    silver:
+      +schema: silver
+      +materialized: incremental
+    reference:
+      +schema: bronze
+      +materialized: table
+    entity:
+      +schema: bronze
+      +materialized: table
+
+seeds:
+  bank_cbs:
+    +quote_columns: false
+    +schema: seed
+
+
+# --- schema.yml for Sources and Models ---
+
+# models/silver/schema.yml
+version: 2
+
+sources:
+  - name: bronze
+    schema: bronze
+    tables:
+      - name: financial_ledger
+
+models:
+  - name: atm_withdrawal_mart
+    description: "Silver-layer ATM Withdrawal data mart transformed from double-entry ledger."
+    columns:
+      - name: transaction_id
+        tests:
+          - not_null
+          - unique
+      - name: transaction_timestamp
+        tests:
+          - not_null
+      - name: withdrawal_amount
+        tests:
+          - not_null
+      - name: customer_account_id
+        tests:
+          - not_null
+      - name: atm_account_id
+        tests:
+          - not_null
+
+  - name: atms
+    description: "Reference table for ATM details."
+    columns:
+      - name: atm_id
+        tests:
+          - not_null
+          - unique
+      - name: cash_gl_account_id
+        tests:
+          - not_null
+      - name: branch_id
+        tests:
+          - not_null
+
+  - name: branches
+    description: "Reference table for bank branches."
+    columns:
+      - name: branch_id
+        tests:
+          - not_null
+          - unique
+      - name: branch_name
+        tests:
+          - not_null
+
+  - name: ref_transaction_types
+    description: "Reference table for transaction types."
+    columns:
+      - name: type_code
+        tests:
+          - not_null
+          - unique
+      - name: type_name
+        tests:
+          - not_null
+
+  - name: ref_channels
+    description: "Reference table for transaction channels."
+    columns:
+      - name: channel_code
+        tests:
+          - not_null
+          - unique
+      - name: channel_name
+        tests:
+          - not_null
+
+  - name: accounts
+    description: "Entity table for customer accounts."
+    columns:
+      - name: account_id
+        tests:
+          - not_null
+          - unique
+      - name: customer_id
+        tests:
+          - not_null
+
+  - name: customers
+    description: "Entity table for customers."
+    columns:
+      - name: customer_id
+        tests:
+          - not_null
+          - unique
+      - name: customer_name
+        tests:
+          - not_null
+
+# --- atm_withdrawal_mart.sql ---
+
+-- models/silver/atm_withdrawal_mart.sql
+
+{{ config(
+    materialized='incremental',
+    unique_key='transaction_id'
+) }}
+
+WITH bronze_ledger AS (
+    SELECT *
+    FROM {{ source('bronze', 'financial_ledger') }}
+    WHERE transaction_type_code = '001'
+),
+
+dr_entries AS (
+    SELECT
+        transaction_id,
+        transaction_timestamp,
+        account_id AS customer_account_id,
+        amount,
+        transaction_type_code AS type_code,
+        channel_code
+    FROM bronze_ledger
+    WHERE entry_type = 'DR'
+),
+
+cr_entries AS (
+    SELECT
+        transaction_id,
+        account_id AS atm_account_id
+    FROM bronze_ledger
+    WHERE entry_type = 'CR'
+),
+
+joined_txns AS (
+    SELECT
+        dr.transaction_id,
+        dr.transaction_timestamp,
+        dr.customer_account_id,
+        cr.atm_account_id,
+        dr.amount AS withdrawal_amount,
+        dr.type_code,
+        dr.channel_code
+    FROM dr_entries dr
+    LEFT JOIN cr_entries cr
+      ON dr.transaction_id = cr.transaction_id
+),
+
+enriched_txns AS (
+    SELECT
+        jt.transaction_id,
+        jt.transaction_timestamp,
+        jt.customer_account_id,
+        jt.atm_account_id,
+        atm.atm_id,
+        atm.location_name,
+        br.branch_id,
+        br.branch_name,
+        jt.type_code,
+        rtt.type_name,
+        jt.channel_code,
+        rc.channel_name,
+        jt.withdrawal_amount
+    FROM joined_txns jt
+    LEFT JOIN {{ ref('atms') }} atm
+        ON jt.atm_account_id = atm.cash_gl_account_id
+    LEFT JOIN {{ ref('branches') }} br
+        ON atm.branch_id = br.branch_id
+    LEFT JOIN {{ ref('ref_transaction_types') }} rtt
+        ON jt.type_code = rtt.type_code
+    LEFT JOIN {{ ref('ref_channels') }} rc
+        ON jt.channel_code = rc.channel_code
+)
+
+SELECT *
+FROM enriched_txns
+
+{% if is_incremental() %}
+WHERE transaction_timestamp > (SELECT MAX(transaction_timestamp) FROM {{ this }})
+{% endif %}
+
+
+
+
+  # ENTITY MODELS
+  - name: customers
+    description: "Raw customer entity data from the core banking system."
+    columns:
+      - name: customer_id
+        description: "Unique identifier for each customer."
+        tests:
+          - not_null
+          - unique
+      - name: customer_unique_id
+        description: Encrypted unique identifier.
+        tests:
+          - not_null
+          - unique
+      - name: first_name
+        description: First name of customer.
+      - name: last_name
+        description: Last name of customer.
+      - name: date_of_birth
+        description: Date of birth.
+      - name: gender
+        description: Gender of the customer.
+      - name: contact_number
+        description: Mobile or landline number.
+      - name: email_address
+        description: Email of the customer.
+      - name: address_line1
+        description: Street address.
+      - name: city
+        description: City of residence.
+      - name: country
+        description: Country of residence.
+      - name: created_date
+        description: Record creation timestamp.
+      - name: last_updated_date
+        description: Record last updated timestamp.
+
+  - name: accounts
+    description: "Raw account-level data for customers."
+    columns:
+      - name: account_id
+        description: Unique identifier of the account.
+        tests:
+          - not_null
+          - unique
+      - name: account_number
+        description: Account number.
+        tests:
+          - not_null
+          - unique
+      - name: customer_id
+        description: Foreign key to customers table.
+      - name: account_type
+        description: Type of account.
+      - name: currency_code
+        description: Currency associated with the account.
+      - name: current_balance
+        description: Current balance of the account.
+      - name: opening_date
+        description: Date account was opened.
+      - name: closing_date
+        description: Date account was closed (if applicable).
+      - name: account_status
+        description: Status of the account.
+      - name: gl_account_code
+        description: Associated GL account.
+      - name: created_date
+        description: Record creation timestamp.
+      - name: last_updated_date
+        description: Last update timestamp.
+
+  - name: users
+    description: "Raw data of internal users (employees) interacting with the banking system."
+    columns:
+      - name: user_id
+        description: Unique ID of the user.
+        tests:
+          - not_null
+          - unique
+      - name: username
+        description: Username for login.
+      - name: full_name
+        description: Full name.
+      - name: email
+        description: Email address.
+      - name: role
+        description: System role or designation.
+      - name: is_active
+        description: User's active status.
+      - name: created_date
+        description: Record creation timestamp.
+      - name: last_updated_date
+        description: Last updated timestamp.
+
+  - name: branches
+    description: Raw data for physical bank branches.
+    columns:
+      - name: branch_id
+        description: Unique identifier for the branch.
+        tests:
+          - not_null
+          - unique
+      - name: branch_name
+        description: Branch name.
+      - name: address
+        description: Full address.
+      - name: city
+        description: City.
+      - name: country
+        description: Country.
+      - name: contact_number
+        description: Phone number.
+      - name: manager_user_id
+        description: User ID of branch manager, associated with user_id
+      - name: opening_date
+        description: Branch opening date.
+      - name: closing_date
+        description: Closing date if applicable.
+      - name: is_active
+        description: Flag indicating if branch is operational.
+      - name: created_date
+        description: Record creation timestamp.
+      - name: last_updated_date
+        description: Last updated timestamp.
+
+  - name: atms
+    description: "Master list of ATM terminals in the banking system."
+    columns:
+      - name: atm_id
+        description: "Unique identifier for each ATM terminal."
+        tests:
+          - not_null
+          - unique
+      - name: location_name
+        description: Location name of the ATM.
+      - name: address
+        description: Address of ATM.
+      - name: city
+        description: City.
+      - name: country
+        description: Country.
+      - name: atm_type
+        description: Type of ATM (e.g., Cash Withdrawal, Full Service).
+      - name: atm_status
+        description: Current operational status.
+      - name: cash_gl_account_id
+        description: GL account linked with cash.
+      - name: branch_id
+        description: Associated branch of the ATM.
+        tests:
+          - not_null
+      - name: last_maintenance_date
+        description: Last time the ATM was serviced.
+      - name: created_date
+        description: Record creation timestamp.
+      - name: last_updated_date
+        description: Last updated timestamp.
+
+  #REFERENCE MODELS
+  - name: ref_channels
+    description: Reference data for transaction channels (e.g., ATM, Mobile App)
+    columns:
+      - name: channel_code
+        description: Unique code for the channel.
+        tests:
+          - not_null
+          - unique
+      - name: channel_name
+        description: Name of the channel (e.g., ATM, Branch).
+      - name: description
+        description: Description of the channel.
+      - name: is_active
+        description: Indicates if the channel is active.
+      - name: created_date
+        description: Record creation timestamp.
+      - name: last_updated_date
+        description: Record last update timestamp.
+
+  - name: ref_currencies
+    description: Reference list of supported currencies in the system
+    columns:
+      - name: currency_code
+        description: ISO code for the currency.
+        tests:
+          - not_null
+          - unique
+      - name: currency_name
+        description: Name of the currency.
+      - name: decimal_places
+        description: Number of decimal places supported.
+      - name: symbol
+        description: Symbol of the currency (e.g., $, ৳).
+      - name: is_active
+        description: Indicates if the currency is active.
+      - name: created_date
+        description: Record creation timestamp.
+      - name: updated_date
+        description: Last updated timestamp.
+
+  - name: ref_gl_accounts
+    description: Reference table for General Ledger accounts.
+    columns:
+      - name: gl_code
+        description: Unique GL account code.
+        tests:
+          - not_null
+          - unique
+      - name: gl_name
+        description: Name of the GL account.
+      - name: account_type
+        description: Type of account (e.g., Asset, Liability).
+      - name: parent_gl_code
+        description: Parent GL account code for hierarchy.
+      - name: is_active
+        description: Indicates if the GL account is active.
+      - name: created_date
+        description: Record creation timestamp.
+      - name: last_updated_date
+        description: Record last updated timestamp.
+
+  - name: ref_processing_systems
+    description: Reference data for systems processing the transactions.
+    columns:
+      - name: system_code
+        description: Unique code for the processing system.
+        tests:
+          - not_null
+          - unique
+      - name: system_name
+        description: Name of the system.
+      - name: description
+        description: Description of the system.
+      - name: created_date
+        description: Record creation timestamp.
+      - name: last_updated_date
+        description: Last updated timestamp.
+
+  - name: ref_transaction_status
+    description: Reference indicating status of transactions.
+    columns:
+      - name: status_code
+        description: Unique status code.
+        tests:
+          - not_null
+          - unique
+      - name: status_name
+        description: Name of the transaction status.
+      - name: description
+        description: Description of the status.
+
+  - name: ref_transaction_types
+    description: Master data for different transaction types.
+    columns:
+      - name: type_code
+        description: Unique code for the transaction type.
+        tests:
+          - not_null
+          - unique
+      - name: type_name
+        description: Descriptive name.
+      - name: description
+        description: Details about the transaction type.
+      - name: is_financial
+        description: Indicates whether the type is financial.
+      - name: is_reversal_type
+        description: Flag for identifying reversal transactions.
+      - name: created_date
+        description: Creation timestamp.
+      - name: last_updated_date
+        description: Last update timestamp.

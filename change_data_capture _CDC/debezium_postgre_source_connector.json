@@ -1,0 +1,37 @@
+{
+  "name": "debezium-postgres-cdc-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "tasks.max": "1",
+    "database.hostname": "host.docker.internal", 
+    "database.port": "5432",
+    "database.user": "postgres",  
+    "database.password": "*****", 
+    "database.dbname": "data_pipeline",
+    "database.server.name": "my_data_pipeline_server",
+    "topic.prefix": "postgres_cdc_",
+
+    "schema.include.list": "public",
+    "table.include.list": "public.kafka_sink_data",
+
+    "plugin.name": "pgoutput",
+    "slot.name": "debezium_cdc_slot",
+
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",       
+    "value.converter.schemas.enable": "true",
+
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",         
+    "key.converter.schemas.enable": "false",
+
+    "errors.tolerance": "all",
+    "errors.log.enable": "true",
+    "errors.log.include.messages": "true",
+
+    "transforms": "unwrap",
+    "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+    "transforms.unwrap.delete.handling.mode": "rewrite",
+    "transforms.unwrap.drop.tombstones": "false",
+    "decimal.handling.mode": "double",
+    "snapshot.mode": "initial"
+  }
+}

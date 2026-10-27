@@ -1,0 +1,31 @@
+
+name: 'financial_service_dwh'
+version: '1.0.0'
+config-version: 2
+
+
+profile: 'financial_service_dwh'
+
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:         # directories to be removed by `dbt clean`
+  - "target"
+  - "dbt_packages"
+
+
+
+models:
+  financial_service_dwh:
+    # Config indicated by + and applies to all files under models/example/
+    example:
+      +materialized: view
+
+
+on-run-end:
+  - "{{ log_model_audit() }}"

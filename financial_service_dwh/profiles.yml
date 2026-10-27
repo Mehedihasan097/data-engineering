@@ -1,0 +1,12 @@
+financial_service_dwh:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: localhost #host.docker.internal
+      user: postgres
+      password: "12345"
+      port: 5432
+      dbname: financial_txn
+      schema: dbt_staging
+      threads: 4

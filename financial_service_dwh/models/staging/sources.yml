@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: raw_prod
+    database: financial_txn
+    schema: financial_service
+    tables:
+      - name: financial_txn_production_base
+      - name: agent_hierarchy_master
