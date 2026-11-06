@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: top_10_agents_per_dh
+    description: "Final incremental data mart identifying and ranking the top 10 performing agents per distributor house daily based on total transaction volume and count."
+    columns:
+      - name: txn_date
+        description: "Transaction date slice for the performance ranking."
+        tests:
+          - not_null
+
+      - name: region_name
+        description: "Geographical region name where the distributor house operates."
+        tests:
+          - not_null
+          
+
+      - name: dh_wallet
+        description: "Wallet identifier of the Distributor House."
+        tests:
+          - not_null
+
+      - name: dh_name
+        description: "Business name of the Distributor House."
+        tests:
+          - not_null
+
+      - name: dso_wallet
+        description: "Wallet identifier of the supervising Distribution Sales Officer."
+
+      - name: agent_wallet
+        description: "Unique wallet account identifier for the participating agent."
+        tests:
+          - not_null
+
+      - name: txn_cnt
+        description: "Total count of transactions executed by the agent on the given date."
+        tests:
+          - not_null
+
+      - name: txn_amt
+        description: "Total monetary transaction amount (volume) processed by the agent in local currency (BDT)."
+        tests:
+          - not_null
+
+      - name: rank_num
+        description: "Calculated performance rank of the agent within their respective Distributor House (1 to 10)."
+        tests:
+          - not_null
