@@ -1,0 +1,55 @@
+version: 2
+
+models:
+  - name: agent_hierarchy_master_latest_snap
+    description: "Deduplicated latest snapshot model extracting the most recent active hierarchy mapping for every agent based on the latest tagging timestamp."
+    columns:
+      - name: agent_id
+        description: "Internal system identifier for the agent (Primary Key grain for latest hierarchy)."
+        tests:
+          - unique
+          - not_null
+
+      - name: agent_wallet
+        description: "Unique wallet account identifier for the agent."
+        tests:
+          - not_null
+
+      - name: agent_name
+        description: "Registered business or personal name of the agent."
+        tests:
+          - not_null
+
+      - name: dso_id
+        description: "Internal system identifier for the Distribution Sales Officer (DSO)."
+
+      - name: dso_wallet
+        description: "Wallet account identifier for the assigned DSO."
+
+      - name: dso_name
+        description: "Full name of the assigned Distribution Sales Officer."
+
+      - name: dh_id
+        description: "Internal system identifier for the Distributor House (DH)."
+
+      - name: dh_wallet
+        description: "Wallet account identifier for the Distributor House."
+        tests:
+          - not_null
+
+      - name: dh_name
+        description: "Business name of the Distributor House."
+        tests:
+          - not_null
+
+      - name: region_name
+        description: "Geographical region name where the Distributor House operates."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Dhaka', 'Chittagong', 'Sylhet', 'Rajshahi', 'Khulna', 'Barisal', 'Rangpur']
+
+      - name: tagging_timestamp
+        description: "Timestamp indicating the exact moment of the latest tagging event for this agent relationship."
+        tests:
+          - not_null
